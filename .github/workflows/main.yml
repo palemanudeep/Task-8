@@ -34,12 +34,12 @@ jobs:
 
       - name: Terraform Init
         run: |
-         cd Terraform
+         cd terraform
          terraform init
 
       - name: Terraform Plan
         run: |
-         cd Terraform
+         cd terraform
          terraform plan
 
       - name: Terraform Apply
@@ -49,7 +49,7 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-           cd Terraform 
+           cd terraform 
            terraform apply -auto-approve -var "db_password=${{ secrets.DB_PASSWORD }}"
 
   pull_tag_push_image:
