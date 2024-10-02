@@ -31,7 +31,7 @@ data "aws_subnet" "public_subnet_1_service8" {
 }
 
 resource "aws_subnet" "public_subnet_1_service8" {
-  vpc_id            = aws_vpc.main_service8.id
+  vpc_id            = aws_vpc.main_service8[count.index].id
   cidr_block        = "10.0.1.0/24"
   availability_zone = "${var.aws_region}a"
 
@@ -51,7 +51,7 @@ data "aws_subnet" "public_subnet_2_service8" {
 }
 
 resource "aws_subnet" "public_subnet_2_service8" {
-  vpc_id            = aws_vpc.main_service8.id
+  vpc_id            = aws_vpc.main_service8[count.index].id
   cidr_block        = "10.0.2.0/24"
   availability_zone = "${var.aws_region}b"
 
@@ -71,7 +71,7 @@ data "aws_internet_gateway" "existing_gw_service8" {
 }
 
 resource "aws_internet_gateway" "gw_service8" {
-  vpc_id = aws_vpc.main_service8.id
+  vpc_id = aws_vpc.main_service8[count.index].id
 
   tags = {
     Name = "medusa-gw-service8"
@@ -89,11 +89,11 @@ data "aws_route_table" "existing_public_route_table_service8" {
 }
 
 resource "aws_route_table" "public_route_table_service8" {
-  vpc_id = aws_vpc.main_service8.id
+  vpc_id = aws_vpc.main_service8[count.index].id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.gw_service8.id
+    gateway_id = aws_internet_gateway.gw_service8[count.index].id
   }
 
   tags = {
@@ -104,13 +104,13 @@ resource "aws_route_table" "public_route_table_service8" {
 }
 
 resource "aws_route_table_association" "public_subnet_1_service8" {
-  subnet_id      = aws_subnet.public_subnet_1_service8.id
-  route_table_id = aws_route_table.public_route_table_service8.id
+  subnet_id      = aws_subnet.public_subnet_1_service8[count.index].id
+  route_table_id = aws_route_table.public_route_table_service8[count.index].id
 }
 
 resource "aws_route_table_association" "public_subnet_2_service8" {
-  subnet_id      = aws_subnet.public_subnet_2_service8.id
-  route_table_id = aws_route_table.public_route_table_service8.id
+  subnet_id      = aws_subnet.public_subnet_2_service8[count.index].id
+  route_table_id = aws_route_table.public_route_table_service8[count.index].id
 }
 
 # Security Group for ECS (conditional)
@@ -122,7 +122,7 @@ data "aws_security_group" "existing_ecs_sg_service8" {
 }
 
 resource "aws_security_group" "ecs_sg_service8" {
-  vpc_id      = aws_vpc.main_service8.id
+  vpc_id      = aws_vpc.main_service8[count.index].id
   description = "Allow inbound traffic for ECS services"
 
   ingress {
@@ -197,7 +197,7 @@ resource "aws_iam_role" "ecs_task_execution_role_service8" {
 
 # IAM Policy Attachment for ECS Task Execution Role (conditional)
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy_service8" {
-  role       = aws_iam_role.ecs_task_execution_role_service8.name
+  role       = aws_iam_role.ecs_task_execution_role_service8[count.index].name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
@@ -207,14 +207,14 @@ resource "aws_ecs_task_definition" "medusa_task_service8" {
   network_mode          = "awsvpc"
   cpu                   = 512
   memory                = 1024
-  execution_role_arn    = aws_iam_role.ecs_task_execution_role_service8.arn
+  execution_role_arn    = aws_iam_role.ecs_task_execution_role_service8[count.index].arn
   requires_compatibilities = ["FARGATE"]
 
   container_definitions = <<DEFINITION
 [
   {
     "name": "medusa-container-service8",
-    "image": "${aws_ecr_repository.medusa_ecr_repo_service8.repository_url}:latest",
+    "image": "${aws_ecr_repository.medusa_ecr_repo_service8[count.index].repository_url}:latest",
     "essential": true,
     "memory": 1024,
     "cpu": 512,
@@ -255,7 +255,9 @@ resource "aws_db_instance" "medusa_db_service8" {
   username             = "medusa_user"
   password             = var.db_password
   publicly_accessible  = false
-  vpc_security_group_ids = [aws_security_group.ecs_sg_service8.id]
+  vpc_security_group_ids = [aws_security_group.ecs_sg_service8[count.index].id]
+  db_subnet_group_name = aws_db_subnet_group.db_subnet_group_service8.name
 
   count = length(data.aws_db_instance.existing_medusa_db_service8.id) == 0 ? 1 : 0
 }
+
