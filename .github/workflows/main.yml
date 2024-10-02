@@ -76,10 +76,10 @@ jobs:
            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REPOSITORY_URL }}
       
       - name: Pull Docker Image from Docker Hub
-        run: docker pull sarthakjain2238/medusa-app:latest
+        run: docker pull ${{ secrets.IMAGE }}
 
       - name: Tag Docker Image
-        run: docker tag sarthakjain2238/medusa-app:latest  ${{ env.ECR_REPOSITORY_URL }}:latest
+        run: docker tag ${{ secrets.IMAGE }}  ${{ env.ECR_REPOSITORY_URL }}:latest
 
       - name: Push Docker Image to ECR
         run: docker push ${{ env.ECR_REPOSITORY_URL }}:latest
