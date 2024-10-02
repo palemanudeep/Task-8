@@ -1,12 +1,32 @@
 provider "aws" {
   region = var.aws_region
 }
-  
-# VPC and Networking
+
+# Data source to check if VPC exists
+data "aws_vpc" "existing_service8" {
+  filter {
+    name   = "tag:Name"
+    values = ["medusa-vpc-service8"]
+  }
+}
+
+# VPC creation (conditional)
 resource "aws_vpc" "main_service8" {
   cidr_block = "10.0.0.0/16"
+
   tags = {
     Name = "medusa-vpc-service8"
+  }
+
+  # Create only if the VPC doesn't already exist
+  count = length(data.aws_vpc.existing_service8.id) == 0 ? 1 : 0
+}
+
+# Subnet 1 (conditional)
+data "aws_subnet" "public_subnet_1_service8" {
+  filter {
+    name   = "tag:Name"
+    values = ["medusa-public-subnet-1-service8"]
   }
 }
 
@@ -14,16 +34,58 @@ resource "aws_subnet" "public_subnet_1_service8" {
   vpc_id            = aws_vpc.main_service8.id
   cidr_block        = "10.0.1.0/24"
   availability_zone = "${var.aws_region}a"
+
+  tags = {
+    Name = "medusa-public-subnet-1-service8"
+  }
+
+  count = length(data.aws_subnet.public_subnet_1_service8.id) == 0 ? 1 : 0
+}
+
+# Subnet 2 (conditional)
+data "aws_subnet" "public_subnet_2_service8" {
+  filter {
+    name   = "tag:Name"
+    values = ["medusa-public-subnet-2-service8"]
+  }
 }
 
 resource "aws_subnet" "public_subnet_2_service8" {
   vpc_id            = aws_vpc.main_service8.id
   cidr_block        = "10.0.2.0/24"
   availability_zone = "${var.aws_region}b"
+
+  tags = {
+    Name = "medusa-public-subnet-2-service8"
+  }
+
+  count = length(data.aws_subnet.public_subnet_2_service8.id) == 0 ? 1 : 0
+}
+
+# Internet Gateway (conditional)
+data "aws_internet_gateway" "existing_gw_service8" {
+  filter {
+    name   = "tag:Name"
+    values = ["medusa-gw-service8"]
+  }
 }
 
 resource "aws_internet_gateway" "gw_service8" {
   vpc_id = aws_vpc.main_service8.id
+
+  tags = {
+    Name = "medusa-gw-service8"
+  }
+
+  count = length(data.aws_internet_gateway.existing_gw_service8.id) == 0 ? 1 : 0
+}
+
+# Route table for public subnets (conditional)
+data "aws_route_table" "existing_public_route_table_service8" {
+  filter {
+    name   = "tag:Name"
+    values = ["medusa-public-route-table-service8"]
+  }
 }
 
 resource "aws_route_table" "public_route_table_service8" {
@@ -33,6 +95,12 @@ resource "aws_route_table" "public_route_table_service8" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.gw_service8.id
   }
+
+  tags = {
+    Name = "medusa-public-route-table-service8"
+  }
+
+  count = length(data.aws_route_table.existing_public_route_table_service8.id) == 0 ? 1 : 0
 }
 
 resource "aws_route_table_association" "public_subnet_1_service8" {
@@ -43,6 +111,14 @@ resource "aws_route_table_association" "public_subnet_1_service8" {
 resource "aws_route_table_association" "public_subnet_2_service8" {
   subnet_id      = aws_subnet.public_subnet_2_service8.id
   route_table_id = aws_route_table.public_route_table_service8.id
+}
+
+# Security Group for ECS (conditional)
+data "aws_security_group" "existing_ecs_sg_service8" {
+  filter {
+    name   = "tag:Name"
+    values = ["medusa-ecs-sg-service8"]
+  }
 }
 
 resource "aws_security_group" "ecs_sg_service8" {
@@ -76,100 +152,68 @@ resource "aws_security_group" "ecs_sg_service8" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
 
-resource "aws_security_group" "rds_sg_service8" {
-  vpc_id      = aws_vpc.main_service8.id
-  description = "Allow RDS connections from ECS"
-
-  ingress {
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+  tags = {
+    Name = "medusa-ecs-sg-service8"
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  count = length(data.aws_security_group.existing_ecs_sg_service8.id) == 0 ? 1 : 0
 }
 
-# ECS Cluster
+# ECS Cluster (conditional)
+data "aws_ecs_cluster" "existing_medusa_ecs_cluster_service8" {
+  cluster_name = "medusa-ecs-cluster-service8"
+}
+
 resource "aws_ecs_cluster" "medusa_ecs_cluster_service8" {
   name = "medusa-ecs-cluster-service8"
+
+  count = length(data.aws_ecs_cluster.existing_medusa_ecs_cluster_service8.id) == 0 ? 1 : 0
 }
 
-# IAM Role for ECS Task Execution
+# IAM Role for ECS Task Execution (conditional)
+data "aws_iam_role" "existing_ecs_task_execution_role_service8" {
+  name = "ecsTaskExecutionRole-service8"
+}
+
 resource "aws_iam_role" "ecs_task_execution_role_service8" {
-  name = "ecsTaskExecutionRole_service8"
+  name = "ecsTaskExecutionRole-service8"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Action = "sts:AssumeRole",
-        Effect = "Allow",
+        Action    = "sts:AssumeRole",
+        Effect    = "Allow",
         Principal = {
           Service = "ecs-tasks.amazonaws.com"
         }
       }
     ]
   })
+
+  count = length(data.aws_iam_role.existing_ecs_task_execution_role_service8.id) == 0 ? 1 : 0
 }
 
-# Attach necessary policies to the ECS Task Execution Role
+# IAM Policy Attachment for ECS Task Execution Role (conditional)
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy_service8" {
   role       = aws_iam_role.ecs_task_execution_role_service8.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# IAM Role for ECS Task
-resource "aws_iam_role" "ecs_task_role_service8" {
-  name = "ecsTaskRole_service8"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action = "sts:AssumeRole",
-        Effect = "Allow",
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-# Attach AWS-managed policy for RDS access to the ECS Task Role
-resource "aws_iam_role_policy_attachment" "ecs_task_rds_policy_service8" {
-  role       = aws_iam_role.ecs_task_role_service8.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonRDSFullAccess"
-}
-
-# Attach ECR read-only access policy to the ECS Task Role
-resource "aws_iam_role_policy_attachment" "ecs_task_ecr_readonly_policy_service8" {
-  role       = aws_iam_role.ecs_task_role_service8.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
-}
-
-# ECS Task Definition
+# ECS Task Definition (conditional)
 resource "aws_ecs_task_definition" "medusa_task_service8" {
   family                = "medusa-task-service8"
   network_mode          = "awsvpc"
   cpu                   = 512
   memory                = 1024
   execution_role_arn    = aws_iam_role.ecs_task_execution_role_service8.arn
-  task_role_arn         = aws_iam_role.ecs_task_role_service8.arn
   requires_compatibilities = ["FARGATE"]
 
   container_definitions = <<DEFINITION
 [
   {
-    "name": "medusa-container",
+    "name": "medusa-container-service8",
     "image": "${aws_ecr_repository.medusa_ecr_repo_service8.repository_url}:latest",
     "essential": true,
     "memory": 1024,
@@ -180,58 +224,38 @@ resource "aws_ecs_task_definition" "medusa_task_service8" {
         "hostPort": 9000,
         "protocol": "tcp"
       }
-    ],
-    "environment": [
-      {
-        "name": "DATABASE_URL",
-        "value": "postgres://medusa_user:${var.db_password}@${aws_db_instance.medusa_db_service8.endpoint}:5432/medusadb_service8"
-      }
     ]
   }
 ]
 DEFINITION
 }
 
-# ECS Service with Fargate Spot (No Load Balancer)
-resource "aws_ecs_service" "medusa_service_service8" {
-  name            = "medusa-service-service8"
-  cluster         = aws_ecs_cluster.medusa_ecs_cluster_service8.id
-  task_definition = aws_ecs_task_definition.medusa_task_service8.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  deployment_maximum_percent = 200
-  deployment_minimum_healthy_percent = 100
-
-  network_configuration {
-    subnets          = [aws_subnet.public_subnet_1_service8.id, aws_subnet.public_subnet_2_service8.id]
-    security_groups  = [aws_security_group.ecs_sg_service8.id]
-    assign_public_ip = true
-  }
-
-  platform_version = "LATEST"
-}
-
-# ECR Repository
-resource "aws_ecr_repository" "medusa_ecr_repo_service8" {
+# ECR Repository (conditional)
+data "aws_ecr_repository" "existing_medusa_ecr_repo_service8" {
   name = "medusa-backend-service8"
 }
 
-# RDS PostgreSQL Instance
+resource "aws_ecr_repository" "medusa_ecr_repo_service8" {
+  name = "medusa-backend-service8"
+
+  count = length(data.aws_ecr_repository.existing_medusa_ecr_repo_service8.id) == 0 ? 1 : 0
+}
+
+# RDS PostgreSQL Instance (conditional)
+data "aws_db_instance" "existing_medusa_db_service8" {
+  db_instance_identifier = "medusa-db-service8"
+}
+
 resource "aws_db_instance" "medusa_db_service8" {
   allocated_storage    = 20
   engine               = "postgres"
   engine_version       = "13"
   instance_class       = "db.t3.micro"
-  db_name              = "medusadb_service8"
+  db_name              = "medusadb-service8"
   username             = "medusa_user"
   password             = var.db_password
   publicly_accessible  = false
-  vpc_security_group_ids = [aws_security_group.rds_sg_service8.id]
-  db_subnet_group_name = aws_db_subnet_group.default_service8.name
-}
+  vpc_security_group_ids = [aws_security_group.ecs_sg_service8.id]
 
-resource "aws_db_subnet_group" "default_service8" {
-  name       = "medusa-db-subnet-group-service8"
-  subnet_ids = [aws_subnet.public_subnet_1_service8.id, aws_subnet.public_subnet_2_service8.id]
+  count = length(data.aws_db_instance.existing_medusa_db_service8.id) == 0 ? 1 : 0
 }
